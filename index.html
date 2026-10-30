@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Muru · Kajtek — archiwum wspomnień</title>
+  <meta name="description" content="Archiwum zdjęć i filmów kota Muru, zwanego Kajtkiem.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Nunito+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="hero">
+    <div class="hero__paw" aria-hidden="true">
+      <svg viewBox="0 0 64 64"><g fill="currentColor"><ellipse cx="32" cy="42" rx="13" ry="11"/><ellipse cx="14" cy="27" rx="6" ry="7.5"/><ellipse cx="25" cy="16" rx="6" ry="8"/><ellipse cx="39" cy="16" rx="6" ry="8"/><ellipse cx="50" cy="27" rx="6" ry="7.5"/></g></svg>
+    </div>
+    <p class="hero__eyebrow">Na zawsze w naszych sercach</p>
+    <h1 class="hero__title">Muru</h1>
+    <p class="hero__subtitle">zwany Kajtkiem</p>
+    <p class="hero__years" id="lata"></p>
+    <p class="hero__quote" id="motto"></p>
+  </header>
+
+  <main class="container">
+    <nav class="filters" aria-label="Filtruj archiwum">
+      <button class="filter is-active" data-filter="wszystko">Wszystko <span class="count" id="count-wszystko"></span></button>
+      <button class="filter" data-filter="zdjecie">Zdjęcia <span class="count" id="count-zdjecie"></span></button>
+      <button class="filter" data-filter="film">Filmy <span class="count" id="count-film"></span></button>
+    </nav>
+
+    <section class="gallery" id="galeria" aria-live="polite"></section>
+
+    <p class="empty" id="pusto" hidden>
+      Tu jeszcze nic nie ma.<br>
+      Dodaj pliki do folderów <code>zdjecia/</code> i <code>filmy/</code>, a potem wpisz je na listę w&nbsp;pliku <code>index.html</code>.
+    </p>
+  </main>
+
+  <footer class="footer">
+    <p>Dziękujemy za każdy dzień razem, Kajtku. ♡</p>
+  </footer>
+
+  <!-- Podgląd na pełnym ekranie -->
+  <div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Podgląd">
+    <button class="lightbox__close" aria-label="Zamknij">&times;</button>
+    <button class="lightbox__nav lightbox__nav--prev" aria-label="Poprzednie">&#8249;</button>
+    <figure class="lightbox__figure">
+      <div class="lightbox__media" id="lightbox-media"></div>
+      <figcaption class="lightbox__caption" id="lightbox-caption"></figcaption>
+    </figure>
+    <button class="lightbox__nav lightbox__nav--next" aria-label="Następne">&#8250;</button>
+  </div>
+
+  <script>
+    /* ============================================================
+       TU WPISUJESZ SWOJE ZDJĘCIA I FILMY
+       ------------------------------------------------------------
+       1. Wrzuć zdjęcia do folderu  zdjecia/  a filmy do  filmy/
+       2. Dopisz każdy plik do listy poniżej:
+            plik  – ścieżka do pliku (wymagane)
+            opis  – podpis pod zdjęciem/filmem (opcjonalnie)
+            data  – np. "lato 2019" (opcjonalnie)
+          Rodzaj (zdjęcie / film) rozpoznawany jest po rozszerzeniu.
+       ============================================================ */
+    const KOT = {
+      lata: "",   // np. "2010 – 2026"
+      motto: "Mały kot, ogromna miłość."
+    };
+
+    const ARCHIWUM = [
+      // { plik: "zdjecia/kajtek-na-parapecie.jpg", opis: "Ulubione miejsce na parapecie", data: "wiosna 2018" },
+      // { plik: "filmy/polowanie-na-wedke.mp4", opis: "Polowanie na wędkę z piórkami", data: "2020" },
+    ];
+
+    /* ---------- poniżej nie trzeba nic zmieniać ---------- */
+    const ROZSZERZENIA_FILMOW = ["mp4", "webm", "mov", "m4v", "ogg"];
+    const typ = (plik) => ROZSZERZENIA_FILMOW.includes(plik.split(".").pop().toLowerCase()) ? "film" : "zdjecie";
+    const elementy = ARCHIWUM.map((m) => ({ ...m, typ: typ(m.plik) }));
+
+    document.getElementById("lata").textContent = KOT.lata;
+    document.getElementById("motto").textContent = KOT.motto;
+
+    const galeria = document.getElementById("galeria");
+    const pusto = document.getElementById("pusto");
+    let widoczne = [];
+    let aktualny = 0;
+
+    function liczniki() {
+      const ile = (t) => elementy.filter((e) => t === "wszystko" || e.typ === t).length;
+      ["wszystko", "zdjecie", "film"].forEach((t) => {
+        document.getElementById("count-" + t).textContent = ile(t);
+      });
+    }
+
+    function kafelek(el, i) {
+      const btn = document.createElement("button");
+      btn.className = "tile tile--" + el.typ;
+      btn.style.animationDelay = Math.min(i * 40, 600) + "ms";
+      btn.setAttribute("aria-label", el.opis || (el.typ === "film" ? "Film" : "Zdjęcie"));
+
+      if (el.typ === "film") {
+        const v = document.createElement("video");
+        v.src = el.plik + "#t=0.5";
+        v.preload = "metadata";
+        v.muted = true;
+        v.playsInline = true;
+        btn.appendChild(v);
+        const play = document.createElement("span");
+        play.className = "tile__play";
+        play.setAttribute("aria-hidden", "true");
+        btn.appendChild(play);
+      } else {
+        const img = document.createElement("img");
+        img.src = el.plik;
+        img.alt = el.opis || "Muru";
+        img.loading = "lazy";
+        btn.appendChild(img);
+      }
+
+      if (el.opis || el.data) {
+        const cap = document.createElement("span");
+        cap.className = "tile__caption";
+        cap.textContent = [el.opis, el.data].filter(Boolean).join(" · ");
+        btn.appendChild(cap);
+      }
+
+      btn.addEventListener("click", () => otworz(i));
+      return btn;
+    }
+
+    function pokaz(filtr) {
+      widoczne = elementy.filter((e) => filtr === "wszystko" || e.typ === filtr);
+      galeria.replaceChildren(...widoczne.map(kafelek));
+      pusto.hidden = widoczne.length > 0;
+    }
+
+    document.querySelectorAll(".filter").forEach((b) => {
+      b.addEventListener("click", () => {
+        document.querySelectorAll(".filter").forEach((x) => x.classList.remove("is-active"));
+        b.classList.add("is-active");
+        pokaz(b.dataset.filter);
+      });
+    });
+
+    /* ---------- lightbox ---------- */
+    const lightbox = document.getElementById("lightbox");
+    const lbMedia = document.getElementById("lightbox-media");
+    const lbCaption = document.getElementById("lightbox-caption");
+
+    function renderLightbox() {
+      const el = widoczne[aktualny];
+      let node;
+      if (el.typ === "film") {
+        node = document.createElement("video");
+        node.src = el.plik;
+        node.controls = true;
+        node.autoplay = true;
+        node.playsInline = true;
+      } else {
+        node = document.createElement("img");
+        node.src = el.plik;
+        node.alt = el.opis || "Muru";
+      }
+      lbMedia.replaceChildren(node);
+      lbCaption.textContent = [el.opis, el.data].filter(Boolean).join(" · ");
+      lightbox.classList.toggle("is-single", widoczne.length < 2);
+    }
+
+    function otworz(i) {
+      aktualny = i;
+      renderLightbox();
+      lightbox.hidden = false;
+      document.body.style.overflow = "hidden";
+    }
+
+    function zamknij() {
+      lightbox.hidden = true;
+      lbMedia.replaceChildren();
+      document.body.style.overflow = "";
+    }
+
+    function przesun(o) {
+      aktualny = (aktualny + o + widoczne.length) % widoczne.length;
+      renderLightbox();
+    }
+
+    lightbox.querySelector(".lightbox__close").addEventListener("click", zamknij);
+    lightbox.querySelector(".lightbox__nav--prev").addEventListener("click", () => przesun(-1));
+    lightbox.querySelector(".lightbox__nav--next").addEventListener("click", () => przesun(1));
+    lightbox.addEventListener("click", (e) => { if (e.target === lightbox) zamknij(); });
+    document.addEventListener("keydown", (e) => {
+      if (lightbox.hidden) return;
+      if (e.key === "Escape") zamknij();
+      if (e.key === "ArrowLeft") przesun(-1);
+      if (e.key === "ArrowRight") przesun(1);
+    });
+
+    liczniki();
+    pokaz("wszystko");
+  </script>
+</body>
+</html>
